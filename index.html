@@ -61,7 +61,7 @@
 
   <script>
     // =========================================================================
-    // STUDIO PRODUCT SVG ARTWORK GENERATOR (100% SELF-CONTAINED, ZERO BROKEN URLS)
+    // STUDIO PRODUCT SVG ARTWORK GENERATOR (DEFAULT SEED IMAGES)
     // =========================================================================
     function createStudioArtwork(title, subtitle, accentHex, iconSvg) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
@@ -118,17 +118,18 @@
     // APPLICATION STATE (PERSISTED TO LOCALSTORAGE)
     // =========================================================================
     const STATE = {
-      route: "store", // "store" | "product" | "admin"
+      route: "store",
       activeProductSlug: null,
-      adminTab: "analytics", // analytics | orders | inventory | cms | marketing | customers | settings
+      adminTab: "analytics",
       adminUser: null,
-      authStep: "credentials", // "credentials" | "otp"
+      authStep: "credentials",
       pendingOtpHash: null,
       pendingOtpExp: 0,
       pendingEmail: "",
       pendingEmailMasked: "",
       otpSending: false,
       otpDeliveryNote: "",
+      modalImages: [], // Holds product images while editing/creating a product in /admin
       currency: "MAD",
       searchQuery: "",
       showAutocomplete: false,
@@ -704,7 +705,7 @@
                   <img src="${IMG.hero}" alt="Yamza Featured Collection" class="w-full h-auto object-cover" />
                 </div>
                 <div class="hidden sm:flex items-center gap-3 bg-white/95 backdrop-blur-md p-3.5 rounded-2xl shadow-xl border border-slate-100 absolute -bottom-4 left-6 right-6 max-w-md">
-                  <img src="${featured[0].images[0]}" alt="${escapeHtml(featured[0].name)}" class="w-14 h-14 rounded-xl object-cover border border-slate-100" />
+                  <img src="${featured[0].images[0]}" alt="${escapeHtml(featured[0].name)}" class="w-14 h-14 rounded-xl object-contain bg-ice border border-slate-100" />
                   <div class="flex-1 min-w-0">
                     <div class="text-[11px] font-bold uppercase tracking-wider text-hotpink">Top Pick Today</div>
                     <div class="text-sm font-bold text-slate-900 truncate">${escapeHtml(featured[0].name)}</div>
@@ -787,7 +788,7 @@
         <article class="group bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col">
           <div class="relative bg-ice aspect-square overflow-hidden">
             <img src="${p.images[0]}" alt="${escapeHtml(p.name)}" onclick="navigate('product','${p.slug}')"
-              class="w-full h-full object-cover cursor-pointer group-hover:scale-105 transition duration-500" />
+              class="w-full h-full object-contain p-2 cursor-pointer group-hover:scale-105 transition duration-500" />
             <div class="absolute top-3 left-3 flex flex-col gap-1.5">
               ${p.badge === "Sale" ? `<span class="bg-hotpink text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm">SALE</span>` : ""}
               ${p.badge === "New" ? `<span class="bg-skybrand text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm">NEW</span>` : ""}
@@ -860,13 +861,13 @@
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
             <div class="lg:col-span-6 space-y-4">
               <div class="zoom-container rounded-3xl bg-ice border border-slate-200 aspect-square shadow-sm">
-                <img src="${activeImg}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover" />
+                <img src="${activeImg}" alt="${escapeHtml(p.name)}" class="w-full h-full object-contain p-4" />
               </div>
-              <div class="flex items-center gap-3">
+              <div class="flex flex-wrap items-center gap-3">
                 ${p.images.map((img, i) => `
                   <button onclick="STATE.pdp.selectedImageIdx = ${i}; render()"
-                    class="w-20 h-20 rounded-2xl overflow-hidden border-2 transition ${STATE.pdp.selectedImageIdx === i ? "border-skybrand ring-2 ring-skybrand/20" : "border-slate-200 opacity-75 hover:opacity-100"}">
-                    <img src="${img}" alt="Thumbnail ${i + 1}" class="w-full h-full object-cover" />
+                    class="w-20 h-20 rounded-2xl overflow-hidden border-2 bg-ice transition ${STATE.pdp.selectedImageIdx === i ? "border-skybrand ring-2 ring-skybrand/20" : "border-slate-200 opacity-75 hover:opacity-100"}">
+                    <img src="${img}" alt="Thumbnail ${i + 1}" class="w-full h-full object-contain p-1" />
                   </button>
                 `).join("")}
               </div>
@@ -1011,7 +1012,7 @@
     }
 
     // =========================================================================
-    // /admin CONTROL VAULT (HIDDEN ROUTE + GMAIL 2-STEP VERIFICATION)
+    // /admin CONTROL VAULT (HIDDEN ROUTE + FAST GMAIL 2-STEP VERIFICATION)
     // =========================================================================
     function renderAdminLogin() {
       const isOtpStep = STATE.authStep === "otp";
@@ -1045,16 +1046,16 @@
             ` : `
               <form onsubmit="handleAdminOtpVerify(event)" class="space-y-4" autocomplete="off">
                 <div class="bg-ice border border-slate-200 rounded-2xl p-3.5 text-xs text-slate-600 text-center leading-relaxed space-y-1">
-                  <div>We sent a 6-digit verification code to your Gmail inbox (<strong class="text-slate-900">${escapeHtml(STATE.pendingEmailMasked)}</strong>).</div>
-                  <div class="text-[11px] font-semibold text-skybrand">${escapeHtml(STATE.otpDeliveryNote || "Open Gmail on your phone, check Inbox or Spam, and enter the code below.")}</div>
+                  <div>We sent a 6-digit verification code to your Gmail (<strong class="text-slate-900">${escapeHtml(STATE.pendingEmailMasked)}</strong>).</div>
+                  <div id="otp-delivery-status" class="text-[11px] font-semibold text-skybrand">${escapeHtml(STATE.otpDeliveryNote || "Open Gmail on your phone and enter the 6-digit code below.")}</div>
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1 text-center">6-Digit Gmail Verification Code</label>
                   <input id="admin-otp" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required placeholder="000000" autocomplete="one-time-code"
                     class="w-full bg-ice border-2 border-skybrand/40 rounded-xl px-4 py-3.5 text-center font-mono text-2xl font-extrabold tracking-[0.4em] text-slate-900 focus:outline-none focus:border-skybrand" />
                 </div>
-                <button type="submit" ${STATE.otpSending ? "disabled" : ""} class="w-full bg-hotpink hover:bg-pinkhover disabled:opacity-60 text-white font-bold py-3.5 rounded-xl text-sm shadow-lg shadow-hotpink/25 transition">
-                  ${STATE.otpSending ? "Sending to Gmail..." : "Verify & Enter Admin"}
+                <button type="submit" class="w-full bg-hotpink hover:bg-pinkhover text-white font-bold py-3.5 rounded-xl text-sm shadow-lg shadow-hotpink/25 transition">
+                  Verify &amp; Enter Admin
                 </button>
                 <div class="flex items-center justify-between pt-1">
                   <button type="button" onclick="resendAdminOtp()" class="text-xs font-bold text-skybrand hover:underline">Resend Code to Gmail</button>
@@ -1263,7 +1264,7 @@
           <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 class="font-display text-2xl sm:text-3xl font-bold text-slate-900">Inventory &amp; Storage (Stockage)</h1>
-              <p class="text-sm text-slate-500">Full product CRUD, variant management, and bulk stock/price editor.</p>
+              <p class="text-sm text-slate-500">Full product CRUD, PNG image uploader, variant management, and bulk stock/price editor.</p>
             </div>
             <div class="flex gap-2">
               <button onclick="STATE.inventoryFilter.bulkEdit = !STATE.inventoryFilter.bulkEdit; render()"
@@ -1293,7 +1294,7 @@
                   ${STATE.products.map(p => `
                     <tr class="hover:bg-ice/50">
                       <td class="py-3 px-4 flex items-center gap-3">
-                        <img src="${p.images[0]}" class="w-11 h-11 rounded-xl object-cover border border-slate-200" />
+                        <img src="${p.images[0]}" class="w-11 h-11 rounded-xl object-contain bg-ice border border-slate-200" />
                         <div class="font-bold text-slate-900">${escapeHtml(p.name)}</div>
                       </td>
                       <td class="py-3 px-4 font-mono text-xs text-slate-600">${escapeHtml(p.sku)}</td>
@@ -1481,7 +1482,7 @@
     }
 
     // =========================================================================
-    // MODALS & DRAWERS
+    // MODALS & DRAWERS (INCLUDING MULTI-PNG PC IMAGE UPLOADER FOR PRODUCTS)
     // =========================================================================
     function closeModals() {
       document.getElementById("modal-root").classList.add("hidden");
@@ -1496,7 +1497,7 @@
       root.innerHTML = `
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this) closeModals()">
           <div class="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl grid grid-cols-1 md:grid-cols-2">
-            <div class="bg-ice aspect-square"><img src="${p.images[0]}" class="w-full h-full object-cover" /></div>
+            <div class="bg-ice aspect-square"><img src="${p.images[0]}" class="w-full h-full object-contain p-4" /></div>
             <div class="p-6 flex flex-col justify-between space-y-4">
               <div>
                 <div class="flex items-center justify-between">
@@ -1537,7 +1538,7 @@
             <div class="flex-1 overflow-y-auto p-5 space-y-4">
               ${STATE.cart.length === 0 ? `<div class="text-center py-16 text-slate-500 text-sm">Your Yamza cart is empty.</div>` : STATE.cart.map((it, idx) => `
                 <div class="flex gap-3 p-3 rounded-2xl bg-ice border border-slate-100">
-                  <img src="${it.image}" class="w-16 h-16 rounded-xl object-cover border border-slate-200" />
+                  <img src="${it.image}" class="w-16 h-16 rounded-xl object-contain bg-white border border-slate-200" />
                   <div class="flex-1 min-w-0">
                     <div class="text-sm font-bold text-slate-900 truncate">${escapeHtml(it.name)}</div>
                     <div class="text-xs text-slate-500">${escapeHtml(it.variant)}</div>
@@ -1586,7 +1587,7 @@
             <div class="flex-1 overflow-y-auto p-5 space-y-3">
               ${items.length === 0 ? `<p class="text-center py-12 text-sm text-slate-500">No saved items yet.</p>` : items.map(p => `
                 <div class="flex items-center gap-3 p-3 rounded-2xl bg-ice border border-slate-100">
-                  <img src="${p.images[0]}" class="w-14 h-14 rounded-xl object-cover" />
+                  <img src="${p.images[0]}" class="w-14 h-14 rounded-xl object-contain bg-white" />
                   <div class="flex-1 min-w-0">
                     <div class="text-sm font-bold text-slate-900 truncate">${escapeHtml(p.name)}</div>
                     <div class="text-xs font-bold text-skybrand">${formatPrice(p.price)}</div>
@@ -1669,18 +1670,112 @@
       `;
     }
 
+    // =========================================================================
+    // PRODUCT EDIT / ADD MODAL WITH MULTI-PNG PC IMAGE UPLOADER
+    // =========================================================================
+    function renderModalImagesGallery() {
+      const container = document.getElementById("pf-images-gallery");
+      if (!container) return;
+      if (!STATE.modalImages || STATE.modalImages.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-400 py-2 text-center">No images selected yet. Upload a PNG from your PC above.</div>`;
+        return;
+      }
+      container.innerHTML = STATE.modalImages.map((imgSrc, idx) => `
+        <div class="relative group w-20 h-20 rounded-2xl border-2 ${idx === 0 ? "border-skybrand ring-2 ring-skybrand/20" : "border-slate-200"} bg-white overflow-hidden flex items-center justify-center">
+          <img src="${imgSrc}" class="w-full h-full object-contain p-1" />
+          ${idx === 0 ? `<span class="absolute bottom-1 left-1 right-1 bg-skybrand text-white text-[9px] font-extrabold text-center rounded py-0.5">MAIN</span>` : `
+            <button type="button" onclick="setModalMainImage(${idx})" class="opacity-0 group-hover:opacity-100 absolute bottom-1 left-1 right-1 bg-slate-900/80 text-white text-[9px] font-bold text-center rounded py-0.5 transition">Set Main</button>
+          `}
+          <button type="button" onclick="removeModalImage(${idx})" title="Remove image" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shadow hover:bg-rose-600">✕</button>
+        </div>
+      `).join("");
+    }
+
+    function setModalMainImage(idx) {
+      if (idx <= 0 || idx >= STATE.modalImages.length) return;
+      const chosen = STATE.modalImages.splice(idx, 1)[0];
+      STATE.modalImages.unshift(chosen);
+      renderModalImagesGallery();
+      showToast("Set as main product image.", "info");
+    }
+
+    function removeModalImage(idx) {
+      STATE.modalImages.splice(idx, 1);
+      renderModalImagesGallery();
+    }
+
+    function handleModalFilesSelected(fileList) {
+      if (!fileList || fileList.length === 0) return;
+      const files = Array.from(fileList);
+      let processed = 0;
+
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            // Preserve PNG transparency while keeping dimensions clean (max 680px) so localStorage stays fast
+            const maxDim = 680;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+              else { w = Math.round((w * maxDim) / h); h = maxDim; }
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            // Keep PNG format for transparent PNGs
+            const isPng = file.type === "image/png" || (file.name && file.name.toLowerCase().endsWith(".png"));
+            const dataUrl = isPng ? canvas.toDataURL("image/png") : canvas.toDataURL("image/webp", 0.86);
+            STATE.modalImages.unshift(dataUrl); // Newest uploaded PNG becomes the Main Image automatically!
+            processed++;
+            renderModalImagesGallery();
+            if (processed === files.length) {
+              showToast(`Uploaded ${files.length} PNG/image(s) from your PC!`);
+            }
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
     function openProductFormModal(productId = null) {
       const p = productId ? STATE.products.find(x => x.id === productId) : null;
+      STATE.modalImages = p && Array.isArray(p.images) ? [...p.images] : [IMG.headphones];
+
       const root = document.getElementById("modal-root");
       root.classList.remove("hidden");
       root.innerHTML = `
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this) closeModals()">
-          <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+          <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto scrollbar-thin">
             <div class="flex items-center justify-between">
               <h3 class="font-display text-xl font-bold text-slate-900">${p ? "Edit Product" : "Add New Product"}</h3>
               <button onclick="closeModals()" class="text-slate-400 hover:text-slate-700 font-bold">✕</button>
             </div>
+
             <form onsubmit="handleProductSave(event, '${p ? p.id : ""}')" class="space-y-3 text-sm">
+              <!-- PNG / PC Multi-Image Uploader -->
+              <div class="bg-ice border-2 border-dashed border-skybrand/40 rounded-2xl p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-xs font-extrabold text-slate-900 uppercase tracking-wider">Product Images (PNG / WebP / JPG)</div>
+                    <div class="text-[11px] text-slate-500">Upload transparent PNG photos directly from your PC</div>
+                  </div>
+                  <label for="pf-file-upload" class="cursor-pointer bg-skybrand hover:bg-sky-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm transition inline-flex items-center gap-1.5">
+                    <span>+ Upload PNG from PC</span>
+                  </label>
+                  <input id="pf-file-upload" type="file" accept="image/png,image/webp,image/jpeg,image/*" multiple class="hidden"
+                    onchange="handleModalFilesSelected(this.files); this.value='';" />
+                </div>
+
+                <div id="pf-images-gallery" class="flex flex-wrap gap-2.5 pt-1"></div>
+              </div>
+
               <input id="pf-name" type="text" required placeholder="Product Name" value="${p ? escapeHtml(p.name) : ""}" class="w-full bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
               <div class="grid grid-cols-2 gap-3">
                 <input id="pf-sku" type="text" required placeholder="SKU" value="${p ? escapeHtml(p.sku) : ""}" class="bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
@@ -1703,10 +1798,11 @@
           </div>
         </div>
       `;
+      renderModalImagesGallery();
     }
 
     // =========================================================================
-    // EVENT HANDLERS & GMAIL 2FA DISPATCH (NO ON-SCREEN CODE)
+    // EVENT HANDLERS & ULTRA-FAST GMAIL 2FA DISPATCH
     // =========================================================================
     function selectCategory(cat) {
       STATE.filters.category = cat;
@@ -1872,41 +1968,34 @@
       return (name[0] || "") + "***" + (name[name.length - 1] || "") + "@" + parts[1];
     }
 
-    async function dispatchOtpEmailToGmail(targetEmail, code) {
-      STATE.otpSending = true;
-      STATE.otpDeliveryNote = "Sending 6-digit verification code to your Gmail...";
-      render();
-      try {
-        const res = await fetch("https://formsubmit.co/ajax/" + encodeURIComponent(targetEmail), {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Accept": "application/json" },
-          body: JSON.stringify({
-            _subject: "Yamza /admin Verification Code",
-            _template: "box",
-            _captcha: "false",
-            Verification_Code: code,
-            Notice: "Enter this 6-digit code in Yamza /admin within 10 minutes."
-          })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && (data.success === "true" || data.success === true)) {
-          STATE.otpDeliveryNote = "Code sent to your Gmail! Open Gmail on your phone (Inbox or Spam) and enter the code.";
-          showToast("Verification code sent to your Gmail!", "info");
-        } else if (data && data.message) {
-          STATE.otpDeliveryNote = "Check your Gmail on your phone (" + data.message + ").";
-          showToast("Check your Gmail inbox on your phone.", "info");
-        } else {
-          STATE.otpDeliveryNote = "Code dispatched! Open Gmail on your phone and check Inbox / Spam.";
-        }
-      } catch (err) {
-        STATE.otpDeliveryNote = "Open Gmail on your phone to get the 6-digit code.";
-      }
-      STATE.otpSending = false;
+    // Instant Non-Blocking Dispatch to Gmail using lightweight FormData payload for fastest delivery
+    function dispatchOtpEmailToGmail(targetEmail, code) {
+      STATE.otpDeliveryNote = "Code dispatched! Open Gmail on your phone and enter the 6-digit code.";
       render();
       setTimeout(() => {
         const otpInp = document.getElementById("admin-otp");
         if (otpInp) otpInp.focus();
-      }, 50);
+      }, 20);
+
+      const fd = new FormData();
+      fd.append("_subject", "Yamza Code: " + code);
+      fd.append("_captcha", "false");
+      fd.append("_template", "basic");
+      fd.append("Code", code);
+
+      fetch("https://formsubmit.co/ajax/" + encodeURIComponent(targetEmail), {
+        method: "POST",
+        headers: { "Accept": "application/json" },
+        body: fd,
+        keepalive: true
+      }).then(res => res.json()).then(data => {
+        const statusEl = document.getElementById("otp-delivery-status");
+        if (data && (data.success === "true" || data.success === true)) {
+          STATE.otpDeliveryNote = "Delivered to your Gmail! Check your phone now.";
+          if (statusEl) statusEl.textContent = STATE.otpDeliveryNote;
+          showToast("Code delivered to your Gmail!", "info");
+        }
+      }).catch(() => {});
     }
 
     async function issueOtpChallenge(email) {
@@ -1916,7 +2005,7 @@
       STATE.pendingEmail = email;
       STATE.pendingEmailMasked = maskEmail(email);
       STATE.authStep = "otp";
-      await dispatchOtpEmailToGmail(email, code);
+      dispatchOtpEmailToGmail(email, code);
     }
 
     async function handleAdminLogin(e) {
@@ -1938,7 +2027,8 @@
       const code = String(Math.floor(100000 + Math.random() * 900000));
       STATE.pendingOtpHash = await sha256Hex(code);
       STATE.pendingOtpExp = Date.now() + 10 * 60 * 1000;
-      await dispatchOtpEmailToGmail(STATE.pendingEmail, code);
+      showToast("Resending new 6-digit code to your Gmail...", "info");
+      dispatchOtpEmailToGmail(STATE.pendingEmail, code);
     }
 
     async function handleAdminOtpVerify(e) {
@@ -2022,21 +2112,22 @@
       const colors = document.getElementById("pf-colors").value.split(",").map(s => s.trim()).filter(Boolean);
       const sizes = document.getElementById("pf-sizes").value.split(",").map(s => s.trim()).filter(Boolean);
       const description = document.getElementById("pf-desc").value.trim();
+      const images = (STATE.modalImages && STATE.modalImages.length > 0) ? [...STATE.modalImages] : [IMG.headphones];
 
       if (productId) {
         const p = STATE.products.find(x => x.id === productId);
-        if (p) Object.assign(p, { name, sku, category, price, compareAtPrice, stock, colors, sizes, description });
+        if (p) Object.assign(p, { name, sku, category, price, compareAtPrice, stock, colors, sizes, description, images });
       } else {
         STATE.products.unshift({
           id: "prd-" + Date.now(),
           slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Date.now().toString().slice(-4),
           sku, name, category, price, compareAtPrice, stock, rating: 5.0, reviewsCount: 0, salesCount: 0,
           badge: "New", createdAt: new Date().toISOString().slice(0, 10),
-          images: [IMG.headphones], colors: colors.length ? colors : ["Standard"], sizes: sizes.length ? sizes : ["Standard"], description
+          images, colors: colors.length ? colors : ["Standard"], sizes: sizes.length ? sizes : ["Standard"], description
         });
       }
       closeModals();
-      showToast("Product saved to Stockage.");
+      showToast("Product & PNG images saved to Stockage!");
       render();
     }
 
