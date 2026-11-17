@@ -35,6 +35,21 @@
     .zoom-container { overflow: hidden; position: relative; }
     .zoom-container img { transition: transform 0.35s ease; transform-origin: center center; }
     .zoom-container:hover img { transform: scale(1.45); }
+    @keyframes shakeField {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-5px); }
+      40%, 80% { transform: translateX(5px); }
+    }
+    .input-error {
+      border-color: #EF4444 !important;
+      background-color: #FEF2F2 !important;
+      color: #991B1B !important;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18) !important;
+      animation: shakeField 0.32s ease-in-out;
+    }
+    .input-error::placeholder {
+      color: #F87171 !important;
+    }
     @media print {
       body * { visibility: hidden; }
       #invoice-print-area, #invoice-print-area * { visibility: visible; }
@@ -129,7 +144,7 @@
       pendingEmailMasked: "",
       otpSending: false,
       otpDeliveryNote: "",
-      modalImages: [], // Holds product images while editing/creating a product in /admin
+      modalImages: [],
       currency: "MAD",
       searchQuery: "",
       showAutocomplete: false,
@@ -163,7 +178,7 @@
         announcement: "Free Cash on Delivery across Morocco on orders over 600 MAD — Use code YAMZA10 for 10% off",
         heroBadge: "New Season Essentials",
         heroTitle: "Everyday Luxury, Delivered to Your Door.",
-        heroSubtitle: "Curated electronics, beauty, fashion, and home essentials with instant Cash on Delivery or secure cart checkout.",
+        heroSubtitle: "Curated electronics, beauty, fashion, and home essentials with instant Cash on Delivery.",
         heroCta: "Shop Collection",
         whatsappNumber: "+212600123456",
         contactEmail: "support@yamza.ma",
@@ -290,14 +305,14 @@
         {
           id: "YMZ-1048", createdAt: "2026-11-16 14:20", customerName: "Salma Benali",
           phone: "+212 661-442910", city: "Marrakech", address: "Appt 12, Résidence Gueliz, Av. Mohammed V",
-          paymentMethod: "COD", status: "Pending", subtotal: 890, shippingFee: 0, discount: 0, total: 890,
+          paymentMethod: "الدفع عند الاستلام", status: "Pending", subtotal: 890, shippingFee: 0, discount: 0, total: 890,
           notes: "Call 15 mins before delivery.",
           items: [{ productId: "prd-1", name: "Yamza Studio Pro ANC Headphones", variant: "Matte White / Standard", qty: 1, price: 890 }]
         },
         {
           id: "YMZ-1047", createdAt: "2026-11-16 11:05", customerName: "Youssef El Amrani",
           phone: "+212 663-889102", city: "Casablanca", address: "45 Rue d'Alger, Maarif",
-          paymentMethod: "COD", status: "Confirmed", subtotal: 1298, shippingFee: 0, discount: 130, total: 1168,
+          paymentMethod: "الدفع عند الاستلام", status: "Confirmed", subtotal: 1298, shippingFee: 0, discount: 130, total: 1168,
           notes: "Applied YAMZA10.",
           items: [{ productId: "prd-2", name: "PulseFit AMOLED Smartwatch", variant: "Sky Blue / 45mm", qty: 2, price: 649 }]
         }
@@ -314,7 +329,7 @@
     };
 
     // =========================================================================
-    // UTILITIES
+    // UTILITIES & CUSTOM RED-FIELD VALIDATION (NO BLACK BROWSER TOOLTIPS)
     // =========================================================================
     function formatPrice(madAmount) {
       const cfg = CURRENCY_CONFIG[STATE.currency] || CURRENCY_CONFIG.MAD;
@@ -333,7 +348,7 @@
       const container = document.getElementById("toast-container");
       const el = document.createElement("div");
       const colors = type === "error"
-        ? "bg-slate-900 border-hotpink text-white"
+        ? "bg-rose-600 border-white text-white"
         : type === "info"
         ? "bg-skybrand border-skybrand text-white"
         : "bg-slate-900 border-skybrand text-white";
@@ -345,6 +360,60 @@
         el.style.transform = "translateY(8px)";
         setTimeout(() => el.remove(), 250);
       }, 3200);
+    }
+
+    // Clears red error state as soon as the user types in the input
+    function clearFieldError(inputEl) {
+      if (!inputEl) return;
+      inputEl.classList.remove("input-error");
+    }
+
+    function markFieldError(inputEl) {
+      if (!inputEl) return;
+      inputEl.classList.remove("input-error");
+      void inputEl.offsetWidth; // trigger reflow to replay shake animation
+      inputEl.classList.add("input-error");
+    }
+
+    // Validates customer order fields; highlights ONLY missing or invalid fields in red
+    function validateOrderFields(nameId, phoneId, addressId) {
+      const nameEl = document.getElementById(nameId);
+      const phoneEl = document.getElementById(phoneId);
+      const addressEl = document.getElementById(addressId);
+
+      const nameVal = nameEl ? nameEl.value.trim() : "";
+      const phoneVal = phoneEl ? phoneEl.value.trim() : "";
+      const addressVal = addressEl ? addressEl.value.trim() : "";
+
+      let isValid = true;
+
+      // Full Name: at least 2 characters
+      if (nameVal.length < 2) {
+        markFieldError(nameEl);
+        isValid = false;
+      } else {
+        clearFieldError(nameEl);
+      }
+
+      // Phone Number: must contain at least 8 digits and only valid phone chars
+      const digitsOnly = phoneVal.replace(/[^0-9]/g, "");
+      const validPhoneChars = /^[0-9+\-\s()]+$/.test(phoneVal);
+      if (!phoneVal || !validPhoneChars || digitsOnly.length < 8 || digitsOnly.length > 15) {
+        markFieldError(phoneEl);
+        isValid = false;
+      } else {
+        clearFieldError(phoneEl);
+      }
+
+      // Delivery Address: at least 4 characters
+      if (addressVal.length < 4) {
+        markFieldError(addressEl);
+        isValid = false;
+      } else {
+        clearFieldError(addressEl);
+      }
+
+      return isValid;
     }
 
     function addAuditLog(action, detail) {
@@ -466,7 +535,7 @@
         phone: phone.trim(),
         city,
         address: address.trim(),
-        paymentMethod,
+        paymentMethod: "الدفع عند الاستلام",
         status: "Pending",
         subtotal,
         shippingFee,
@@ -489,7 +558,7 @@
         }
       });
       STATE.orders.unshift(newOrder);
-      addAuditLog("New Order Received", `${newOrder.id} (${paymentMethod}) — ${formatPrice(total)} from ${customerName}`);
+      addAuditLog("New Order Received", `${newOrder.id} (الدفع عند الاستلام) — ${formatPrice(total)} from ${customerName}`);
       return newOrder;
     }
 
@@ -620,14 +689,14 @@
             <div>
               <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Newsletter</h4>
               <p class="text-sm text-slate-600 mb-3">Get flash-sale alerts and exclusive Yamza promo codes.</p>
-              <form onsubmit="handleNewsletterSubmit(event)" class="flex gap-2">
-                <input id="newsletter-email" type="email" required placeholder="you@example.com" class="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-skybrand" />
+              <form novalidate onsubmit="handleNewsletterSubmit(event)" class="flex gap-2">
+                <input id="newsletter-email" type="email" oninput="clearFieldError(this)" placeholder="you@example.com" class="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-skybrand" />
                 <button type="submit" class="bg-hotpink hover:bg-pinkhover text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition shadow-sm">Join</button>
               </form>
             </div>
           </div>
           <div class="border-t border-slate-200 py-5 px-4 text-center text-xs text-slate-500">
-            © 2026 <span class="yamza-wordmark text-sm text-slate-800">Yamza</span>. All rights reserved. Cash on Delivery &amp; Secure Cart Checkout.
+            © 2026 <span class="yamza-wordmark text-sm text-slate-800">Yamza</span>. All rights reserved. الدفع عند الاستلام.
           </div>
         </footer>
 
@@ -690,11 +759,11 @@
                     ${escapeHtml(STATE.cms.heroCta)}
                   </button>
                   <button onclick="navigate('product','${STATE.products[0].slug}')" class="bg-white hover:bg-ice text-slate-900 border border-slate-200 font-semibold px-6 py-3.5 rounded-full transition">
-                    Express COD Featured
+                    الدفع عند الاستلام
                   </button>
                 </div>
                 <div class="grid grid-cols-3 gap-4 pt-4 border-t border-slate-200/70 max-w-lg">
-                  <div class="text-xs font-semibold text-slate-700 flex items-center gap-1.5"><span class="text-skybrand">✓</span> Cash on Delivery</div>
+                  <div class="text-xs font-semibold text-slate-700 flex items-center gap-1.5"><span class="text-skybrand">✓</span> الدفع عند الاستلام</div>
                   <div class="text-xs font-semibold text-slate-700 flex items-center gap-1.5"><span class="text-skybrand">✓</span> 24–48h Dispatch</div>
                   <div class="text-xs font-semibold text-slate-700 flex items-center gap-1.5"><span class="text-skybrand">✓</span> Quality Verified</div>
                 </div>
@@ -721,7 +790,7 @@
             <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
               <div>
                 <h2 class="font-display text-3xl font-bold text-slate-900">Curated Catalog</h2>
-                <p class="text-sm text-slate-500 mt-1">Filter by category, price, rating, or availability — order instantly via COD or Cart.</p>
+                <p class="text-sm text-slate-500 mt-1">Filter by category, price, rating, or availability — الدفع عند الاستلام.</p>
               </div>
               <div class="flex flex-wrap items-center gap-2">
                 ${["All", ...STATE.cms.featuredCategories].map(c => `
@@ -827,7 +896,7 @@
                 </button>
                 <button onclick="navigate('product','${p.slug}')"
                   class="py-2.5 px-3 rounded-xl text-xs font-bold bg-ice hover:bg-sky-50 text-skybrand border border-sky-200 transition">
-                  Express COD
+                  الدفع عند الاستلام
                 </button>
               </div>
             </div>
@@ -837,7 +906,7 @@
     }
 
     // =========================================================================
-    // PRODUCT DETAIL PAGE (PDP) WITH DUAL CHECKOUT
+    // PRODUCT DETAIL PAGE (PDP) WITH CUSTOM RED VALIDATION & الدفع عند الاستلام
     // =========================================================================
     function renderProductDetail() {
       const p = STATE.products.find(x => x.slug === STATE.activeProductSlug) || STATE.products[0];
@@ -930,16 +999,16 @@
               <div class="bg-ice border-2 border-skybrand/30 rounded-3xl p-6 shadow-sm space-y-4">
                 <div class="flex items-center justify-between">
                   <div>
-                    <span class="text-[11px] font-extrabold uppercase tracking-widest text-hotpink">Instant 1-Step Checkout</span>
-                    <h3 class="font-display text-xl font-bold text-slate-900">Express Cash on Delivery (COD)</h3>
+                    <span class="text-[11px] font-extrabold uppercase tracking-widest text-hotpink">Instant 1-Step Order</span>
+                    <h3 class="font-display text-xl font-bold text-slate-900">الدفع عند الاستلام</h3>
                   </div>
-                  <span class="bg-skybrand text-white text-xs font-bold px-3 py-1 rounded-full">Pay on Arrival</span>
+                  <span class="bg-emerald-500 text-white text-xs font-bold px-3.5 py-1.5 rounded-full">✓ الدفع عند الاستلام</span>
                 </div>
 
-                <form onsubmit="handleExpressCodSubmit(event, '${p.id}')" class="space-y-3">
+                <form novalidate onsubmit="handleExpressCodSubmit(event, '${p.id}')" class="space-y-3">
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input id="cod-name" type="text" required placeholder="Full Name *" class="bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-skybrand" />
-                    <input id="cod-phone" type="tel" required placeholder="Phone Number * (e.g. +212 6...)" class="bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-skybrand" />
+                    <input id="cod-name" type="text" oninput="clearFieldError(this)" placeholder="Full Name *" class="bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-skybrand transition" />
+                    <input id="cod-phone" type="tel" oninput="clearFieldError(this)" placeholder="Phone Number * (e.g. 06...)" class="bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-skybrand transition" />
                   </div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <select id="cod-city" onchange="updateCodLiveTotal(${p.price})" class="bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none focus:border-skybrand">
@@ -954,12 +1023,17 @@
                       </div>
                     </div>
                   </div>
-                  <input id="cod-address" type="text" required placeholder="Full Street Address &amp; Neighborhood *" class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-skybrand" />
+                  <input id="cod-address" type="text" oninput="clearFieldError(this)" placeholder="Delivery Address *" class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-skybrand transition" />
+
+                  <div class="bg-emerald-50/80 border border-emerald-200 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs font-bold text-emerald-800">
+                    <span>طريقة الدفع:</span>
+                    <span>✓ الدفع عند الاستلام</span>
+                  </div>
 
                   <div id="cod-live-summary" class="bg-white rounded-2xl p-3.5 border border-slate-200 flex items-center justify-between text-sm">
                     <div>
                       <div class="text-xs text-slate-500">Subtotal + Shipping</div>
-                      <div class="font-bold text-slate-900">Total to Pay on Delivery</div>
+                      <div class="font-bold text-slate-900">المجموع عند الاستلام</div>
                     </div>
                     <div class="text-right">
                       <div class="text-xs text-skybrand font-semibold">${shipFee === 0 ? "Free Shipping!" : `+ ${formatPrice(shipFee)} shipping`}</div>
@@ -969,7 +1043,7 @@
 
                   <button type="submit" ${p.stock <= 0 ? "disabled" : ""}
                     class="w-full py-3.5 rounded-2xl font-bold text-sm transition ${p.stock <= 0 ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-hotpink hover:bg-pinkhover text-white shadow-lg shadow-hotpink/25"}">
-                    Order Now — Cash on Delivery
+                    تأكيد الطلب — الدفع عند الاستلام
                   </button>
                 </form>
               </div>
@@ -992,8 +1066,8 @@
             </div>
             <div class="lg:col-span-5 bg-ice border border-slate-200 rounded-3xl p-6 h-fit">
               <h3 class="font-bold text-base text-slate-900 mb-3">Leave a Review</h3>
-              <form onsubmit="handleNewReview(event, '${p.id}')" class="space-y-3">
-                <input id="rev-author" type="text" required placeholder="Your Name" class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-sm" />
+              <form novalidate onsubmit="handleNewReview(event, '${p.id}')" class="space-y-3">
+                <input id="rev-author" type="text" oninput="clearFieldError(this)" placeholder="Your Name" class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-sm" />
                 <select id="rev-rating" class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-sm">
                   <option value="5">5 Stars — Excellent</option>
                   <option value="4">4 Stars — Very Good</option>
@@ -1001,7 +1075,7 @@
                   <option value="2">2 Stars — Fair</option>
                   <option value="1">1 Star — Poor</option>
                 </select>
-                <textarea id="rev-comment" rows="3" required placeholder="Share your experience..." class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-sm"></textarea>
+                <textarea id="rev-comment" rows="3" oninput="clearFieldError(this)" placeholder="Share your experience..." class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-sm"></textarea>
                 <button type="submit" class="w-full bg-skybrand hover:bg-sky-600 text-white font-bold py-2.5 rounded-xl text-sm transition">Submit Review</button>
               </form>
             </div>
@@ -1030,29 +1104,29 @@
             </div>
 
             ${!isOtpStep ? `
-              <form onsubmit="handleAdminLogin(event)" class="space-y-4" autocomplete="off">
+              <form novalidate onsubmit="handleAdminLogin(event)" class="space-y-4" autocomplete="off">
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Login (Gmail)</label>
-                  <input id="admin-email" type="email" required placeholder="Enter your Gmail address" autocomplete="off" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-skybrand" />
+                  <input id="admin-email" type="email" oninput="clearFieldError(this)" placeholder="Enter your Gmail address" autocomplete="off" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-skybrand transition" />
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Mot de passe</label>
-                  <input id="admin-pass" type="password" required placeholder="••••••••••" autocomplete="new-password" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-skybrand" />
+                  <input id="admin-pass" type="password" oninput="clearFieldError(this)" placeholder="••••••••••" autocomplete="new-password" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-skybrand transition" />
                 </div>
                 <button type="submit" class="w-full bg-hotpink hover:bg-pinkhover text-white font-bold py-3.5 rounded-xl text-sm shadow-lg shadow-hotpink/25 transition">
                   Continue (Entrée) →
                 </button>
               </form>
             ` : `
-              <form onsubmit="handleAdminOtpVerify(event)" class="space-y-4" autocomplete="off">
+              <form novalidate onsubmit="handleAdminOtpVerify(event)" class="space-y-4" autocomplete="off">
                 <div class="bg-ice border border-slate-200 rounded-2xl p-3.5 text-xs text-slate-600 text-center leading-relaxed space-y-1">
                   <div>We sent a 6-digit verification code to your Gmail (<strong class="text-slate-900">${escapeHtml(STATE.pendingEmailMasked)}</strong>).</div>
                   <div id="otp-delivery-status" class="text-[11px] font-semibold text-skybrand">${escapeHtml(STATE.otpDeliveryNote || "Open Gmail on your phone and enter the 6-digit code below.")}</div>
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1 text-center">6-Digit Gmail Verification Code</label>
-                  <input id="admin-otp" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required placeholder="000000" autocomplete="one-time-code"
-                    class="w-full bg-ice border-2 border-skybrand/40 rounded-xl px-4 py-3.5 text-center font-mono text-2xl font-extrabold tracking-[0.4em] text-slate-900 focus:outline-none focus:border-skybrand" />
+                  <input id="admin-otp" type="text" oninput="clearFieldError(this)" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code"
+                    class="w-full bg-ice border-2 border-skybrand/40 rounded-xl px-4 py-3.5 text-center font-mono text-2xl font-extrabold tracking-[0.4em] text-slate-900 focus:outline-none focus:border-skybrand transition" />
                 </div>
                 <button type="submit" class="w-full bg-hotpink hover:bg-pinkhover text-white font-bold py-3.5 rounded-xl text-sm shadow-lg shadow-hotpink/25 transition">
                   Verify &amp; Enter Admin
@@ -1134,7 +1208,7 @@
     function renderAdminAnalytics() {
       const validOrders = STATE.orders.filter(o => o.status !== "Cancelled" && o.status !== "Returned");
       const totalRev = validOrders.reduce((s, o) => s + o.total, 0);
-      const pendingCod = STATE.orders.filter(o => o.paymentMethod === "COD" && o.status === "Pending").length;
+      const pendingCod = STATE.orders.filter(o => o.status === "Pending").length;
       const lowStock = STATE.products.filter(p => p.stock <= 8);
 
       return `
@@ -1142,7 +1216,7 @@
           <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 class="font-display text-2xl sm:text-3xl font-bold text-slate-900">Vault Analytics Overview</h1>
-              <p class="text-sm text-slate-500">Real-time performance across Yamza COD &amp; Cart Checkout channels.</p>
+              <p class="text-sm text-slate-500">Real-time performance across Yamza orders.</p>
             </div>
             <button onclick="STATE.adminTab='orders'; render()" class="bg-hotpink hover:bg-pinkhover text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition">Manage Pending Orders</button>
           </div>
@@ -1244,7 +1318,7 @@
                       <td class="py-3.5 px-4 font-bold text-skybrand">${escapeHtml(o.id)}<div class="text-[11px] font-normal text-slate-400">${escapeHtml(o.createdAt)}</div></td>
                       <td class="py-3.5 px-4 font-semibold text-slate-900">${escapeHtml(o.customerName)}<div class="text-xs font-normal text-slate-500">${escapeHtml(o.phone)}</div></td>
                       <td class="py-3.5 px-4 text-slate-700">${escapeHtml(o.city)}</td>
-                      <td class="py-3.5 px-4"><span class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">${escapeHtml(o.paymentMethod)}</span></td>
+                      <td class="py-3.5 px-4"><span class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">الدفع عند الاستلام</span></td>
                       <td class="py-3.5 px-4 font-extrabold text-slate-900">${formatPrice(o.total)}</td>
                       <td class="py-3.5 px-4"><span class="text-xs font-bold px-2.5 py-1 rounded-full border ${statusBadgeClass(o.status)}">${escapeHtml(o.status)}</span></td>
                       <td class="py-3.5 px-4 text-right"><button class="text-xs font-bold text-skybrand hover:underline">Inspect / Print</button></td>
@@ -1327,7 +1401,7 @@
       return `
         <div class="space-y-6 max-w-3xl">
           <h1 class="font-display text-2xl sm:text-3xl font-bold text-slate-900">Storefront CMS (Live Site Control)</h1>
-          <form onsubmit="handleCmsSave(event)" class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+          <form novalidate onsubmit="handleCmsSave(event)" class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1">Top Announcement Bar Text</label>
               <input id="cms-announcement" type="text" value="${escapeHtml(STATE.cms.announcement)}" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
@@ -1379,13 +1453,13 @@
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
               <h3 class="font-bold text-base text-slate-900">Discount Promo Codes</h3>
-              <form onsubmit="handleAddPromo(event)" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <input id="pm-code" type="text" required placeholder="CODE20" class="bg-ice border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase font-bold" />
+              <form novalidate onsubmit="handleAddPromo(event)" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <input id="pm-code" type="text" oninput="clearFieldError(this)" placeholder="CODE20" class="bg-ice border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase font-bold" />
                 <select id="pm-type" class="bg-ice border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold">
                   <option value="percent">% Off</option>
                   <option value="fixed">Fixed MAD</option>
                 </select>
-                <input id="pm-val" type="number" required min="1" placeholder="Value" class="bg-ice border border-slate-200 rounded-xl px-3 py-2 text-xs" />
+                <input id="pm-val" type="number" oninput="clearFieldError(this)" min="1" placeholder="Value" class="bg-ice border border-slate-200 rounded-xl px-3 py-2 text-xs" />
                 <button type="submit" class="bg-skybrand text-white text-xs font-bold rounded-xl px-3 py-2">Create</button>
               </form>
               <div class="space-y-2">
@@ -1482,7 +1556,7 @@
     }
 
     // =========================================================================
-    // MODALS & DRAWERS (INCLUDING MULTI-PNG PC IMAGE UPLOADER FOR PRODUCTS)
+    // MODALS & DRAWERS (CUSTOM RED VALIDATION + الدفع عند الاستلام ONLY)
     // =========================================================================
     function closeModals() {
       document.getElementById("modal-root").classList.add("hidden");
@@ -1510,7 +1584,7 @@
               </div>
               <div class="space-y-2">
                 <button onclick="closeModals(); addToCart('${p.id}')" class="w-full bg-hotpink hover:bg-pinkhover text-white font-bold py-3 rounded-xl text-sm transition">Add to Cart</button>
-                <button onclick="closeModals(); navigate('product','${p.slug}')" class="w-full bg-ice hover:bg-sky-50 text-skybrand border border-sky-200 font-bold py-3 rounded-xl text-sm transition">Full Details &amp; Express COD</button>
+                <button onclick="closeModals(); navigate('product','${p.slug}')" class="w-full bg-ice hover:bg-sky-50 text-skybrand border border-sky-200 font-bold py-3 rounded-xl text-sm transition">Full Details &amp; الدفع عند الاستلام</button>
               </div>
             </div>
           </div>
@@ -1556,7 +1630,7 @@
             </div>
             ${STATE.cart.length > 0 ? `
               <div class="p-5 border-t border-slate-100 bg-ice space-y-3">
-                <form onsubmit="applyCartPromo(event)" class="flex gap-2">
+                <form novalidate onsubmit="applyCartPromo(event)" class="flex gap-2">
                   <input id="cart-promo-input" type="text" placeholder="Promo code (e.g. YAMZA10)" value="${STATE.appliedPromo ? escapeHtml(STATE.appliedPromo.code) : ""}" class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase font-bold" />
                   <button type="submit" class="bg-slate-900 text-white text-xs font-bold px-4 rounded-xl">Apply</button>
                 </form>
@@ -1603,6 +1677,7 @@
 
     function closeWishlistDrawer() { document.getElementById("wishlist-drawer-root").classList.add("hidden"); }
 
+    // Complete Your Order Modal — Custom Red Field Validation + الدفع عند الاستلام Fixed
     function openCartCheckoutModal() {
       const root = document.getElementById("modal-root");
       root.classList.remove("hidden");
@@ -1613,18 +1688,21 @@
               <h3 class="font-display text-2xl font-bold text-slate-900">Complete Your Order</h3>
               <button onclick="closeModals()" class="text-slate-400 hover:text-slate-700 font-bold">✕</button>
             </div>
-            <form onsubmit="handleCartCheckoutSubmit(event)" class="space-y-3">
-              <input id="chk-name" type="text" required placeholder="Full Name *" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
-              <input id="chk-phone" type="tel" required placeholder="Phone Number *" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
-              <select id="chk-city" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium">
+            <form novalidate onsubmit="handleCartCheckoutSubmit(event)" class="space-y-3">
+              <input id="chk-name" type="text" oninput="clearFieldError(this)" placeholder="Full Name *" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-skybrand transition" />
+              <input id="chk-phone" type="tel" oninput="clearFieldError(this)" placeholder="Phone Number *" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-skybrand transition" />
+              <select id="chk-city" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-skybrand">
                 ${STATE.shippingZones.map(z => `<option value="${escapeHtml(z.city)}">${escapeHtml(z.city)} (${z.eta})</option>`).join("")}
               </select>
-              <input id="chk-address" type="text" required placeholder="Delivery Address *" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-2.5 text-sm" />
-              <select id="chk-method" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold">
-                <option value="COD">Cash on Delivery (Pay on Arrival)</option>
-                <option value="Cart Checkout">Standard Card / Online Checkout</option>
-              </select>
-              <button type="submit" class="w-full bg-hotpink hover:bg-pinkhover text-white font-bold py-3.5 rounded-2xl text-sm shadow-lg">Confirm Order</button>
+              <input id="chk-address" type="text" oninput="clearFieldError(this)" placeholder="Delivery Address *" class="w-full bg-ice border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-skybrand transition" />
+
+              <!-- Fixed Payment Method: الدفع عند الاستلام -->
+              <div class="w-full bg-emerald-50 border-2 border-emerald-200 rounded-xl px-4 py-3 flex items-center justify-between text-sm font-bold text-emerald-800">
+                <span>طريقة الدفع</span>
+                <span class="flex items-center gap-1.5">✓ الدفع عند الاستلام</span>
+              </div>
+
+              <button type="submit" class="w-full bg-hotpink hover:bg-pinkhover text-white font-bold py-3.5 rounded-2xl text-sm shadow-lg transition">Confirm Order</button>
             </form>
           </div>
         </div>
@@ -1648,13 +1726,13 @@
             </div>
             <div id="invoice-print-area" class="space-y-4">
               <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div>${renderWordmark("text-2xl")}<div class="text-xs text-slate-500">Official Invoice &amp; COD Shipping Slip</div></div>
+                <div>${renderWordmark("text-2xl")}<div class="text-xs text-slate-500">Official Invoice &amp; Shipping Slip</div></div>
                 <div class="text-right text-xs text-slate-600"><div class="font-bold text-slate-900">${escapeHtml(o.id)}</div><div>${escapeHtml(o.createdAt)}</div></div>
               </div>
               <div class="text-xs space-y-1">
                 <div><strong>Customer:</strong> ${escapeHtml(o.customerName)} (${escapeHtml(o.phone)})</div>
                 <div><strong>Address:</strong> ${escapeHtml(o.address)}, ${escapeHtml(o.city)}</div>
-                <div><strong>Total:</strong> ${formatPrice(o.total)} (${escapeHtml(o.paymentMethod)})</div>
+                <div><strong>Total:</strong> ${formatPrice(o.total)} (الدفع عند الاستلام)</div>
               </div>
             </div>
             <div class="flex flex-wrap gap-1.5 pt-2">
@@ -1714,7 +1792,6 @@
         reader.onload = (ev) => {
           const img = new Image();
           img.onload = () => {
-            // Preserve PNG transparency while keeping dimensions clean (max 680px) so localStorage stays fast
             const maxDim = 680;
             let w = img.width;
             let h = img.height;
@@ -1728,10 +1805,9 @@
             const ctx = canvas.getContext("2d");
             ctx.clearRect(0, 0, w, h);
             ctx.drawImage(img, 0, 0, w, h);
-            // Keep PNG format for transparent PNGs
             const isPng = file.type === "image/png" || (file.name && file.name.toLowerCase().endsWith(".png"));
             const dataUrl = isPng ? canvas.toDataURL("image/png") : canvas.toDataURL("image/webp", 0.86);
-            STATE.modalImages.unshift(dataUrl); // Newest uploaded PNG becomes the Main Image automatically!
+            STATE.modalImages.unshift(dataUrl);
             processed++;
             renderModalImagesGallery();
             if (processed === files.length) {
@@ -1758,7 +1834,7 @@
               <button onclick="closeModals()" class="text-slate-400 hover:text-slate-700 font-bold">✕</button>
             </div>
 
-            <form onsubmit="handleProductSave(event, '${p ? p.id : ""}')" class="space-y-3 text-sm">
+            <form novalidate onsubmit="handleProductSave(event, '${p ? p.id : ""}')" class="space-y-3 text-sm">
               <!-- PNG / PC Multi-Image Uploader -->
               <div class="bg-ice border-2 border-dashed border-skybrand/40 rounded-2xl p-4 space-y-3">
                 <div class="flex items-center justify-between">
@@ -1776,23 +1852,23 @@
                 <div id="pf-images-gallery" class="flex flex-wrap gap-2.5 pt-1"></div>
               </div>
 
-              <input id="pf-name" type="text" required placeholder="Product Name" value="${p ? escapeHtml(p.name) : ""}" class="w-full bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
+              <input id="pf-name" type="text" oninput="clearFieldError(this)" placeholder="Product Name" value="${p ? escapeHtml(p.name) : ""}" class="w-full bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
               <div class="grid grid-cols-2 gap-3">
-                <input id="pf-sku" type="text" required placeholder="SKU" value="${p ? escapeHtml(p.sku) : ""}" class="bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
+                <input id="pf-sku" type="text" oninput="clearFieldError(this)" placeholder="SKU" value="${p ? escapeHtml(p.sku) : ""}" class="bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
                 <select id="pf-cat" class="bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5">
                   ${STATE.cms.featuredCategories.map(c => `<option value="${escapeHtml(c)}" ${p && p.category === c ? "selected" : ""}>${escapeHtml(c)}</option>`).join("")}
                 </select>
               </div>
               <div class="grid grid-cols-3 gap-3">
-                <input id="pf-price" type="number" required min="1" placeholder="Price" value="${p ? p.price : ""}" class="bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
+                <input id="pf-price" type="number" oninput="clearFieldError(this)" min="1" placeholder="Price" value="${p ? p.price : ""}" class="bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
                 <input id="pf-compare" type="number" placeholder="Compare At" value="${p && p.compareAtPrice ? p.compareAtPrice : ""}" class="bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
-                <input id="pf-stock" type="number" required min="0" placeholder="Stock" value="${p ? p.stock : 15}" class="bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
+                <input id="pf-stock" type="number" oninput="clearFieldError(this)" min="0" placeholder="Stock" value="${p ? p.stock : 15}" class="bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <input id="pf-colors" type="text" placeholder="Colors" value="${p ? escapeHtml(p.colors.join(", ")) : "Sky Blue, White"}" class="bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
                 <input id="pf-sizes" type="text" placeholder="Sizes" value="${p ? escapeHtml(p.sizes.join(", ")) : "Standard"}" class="bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5" />
               </div>
-              <textarea id="pf-desc" rows="3" required placeholder="Product description..." class="w-full bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5">${p ? escapeHtml(p.description) : ""}</textarea>
+              <textarea id="pf-desc" rows="3" oninput="clearFieldError(this)" placeholder="Product description..." class="w-full bg-ice border border-slate-200 rounded-xl px-3.5 py-2.5">${p ? escapeHtml(p.description) : ""}</textarea>
               <button type="submit" class="w-full bg-hotpink hover:bg-pinkhover text-white font-bold py-3 rounded-xl transition">${p ? "Save Changes" : "Create Product"}</button>
             </form>
           </div>
@@ -1855,7 +1931,7 @@
       box.innerHTML = `
         <div>
           <div class="text-xs text-slate-500">Subtotal + Shipping</div>
-          <div class="font-bold text-slate-900">Total to Pay on Delivery</div>
+          <div class="font-bold text-slate-900">المجموع عند الاستلام</div>
         </div>
         <div class="text-right">
           <div class="text-xs text-skybrand font-semibold">${shipFee === 0 ? "Free Shipping!" : `+ ${formatPrice(shipFee)} shipping`}</div>
@@ -1866,6 +1942,9 @@
 
     function handleExpressCodSubmit(e, productId) {
       e.preventDefault();
+      if (!validateOrderFields("cod-name", "cod-phone", "cod-address")) {
+        return;
+      }
       const p = STATE.products.find(x => x.id === productId);
       if (!p || p.stock <= 0) return;
       const order = placeOrder({
@@ -1873,10 +1952,10 @@
         phone: document.getElementById("cod-phone").value,
         city: document.getElementById("cod-city").value,
         address: document.getElementById("cod-address").value,
-        paymentMethod: "COD",
+        paymentMethod: "الدفع عند الاستلام",
         items: [{ productId: p.id, name: p.name, variant: `${STATE.pdp.selectedColor || p.colors[0]} / ${STATE.pdp.selectedSize || p.sizes[0]}`, qty: STATE.pdp.codQty, price: p.price }]
       });
-      showToast(`Express COD Order ${order.id} confirmed!`);
+      showToast(`Order ${order.id} confirmed! (الدفع عند الاستلام)`);
       render();
     }
 
@@ -1905,30 +1984,40 @@
 
     function handleCartCheckoutSubmit(e) {
       e.preventDefault();
+      if (!validateOrderFields("chk-name", "chk-phone", "chk-address")) {
+        return;
+      }
       const order = placeOrder({
         customerName: document.getElementById("chk-name").value,
         phone: document.getElementById("chk-phone").value,
         city: document.getElementById("chk-city").value,
         address: document.getElementById("chk-address").value,
-        paymentMethod: document.getElementById("chk-method").value,
+        paymentMethod: "الدفع عند الاستلام",
         items: STATE.cart,
         promoCode: STATE.appliedPromo ? STATE.appliedPromo.code : null
       });
       STATE.cart = [];
       STATE.appliedPromo = null;
       closeModals();
-      showToast(`Order ${order.id} placed successfully!`);
+      showToast(`Order ${order.id} placed successfully! (الدفع عند الاستلام)`);
       render();
     }
 
     function handleNewReview(e, productId) {
       e.preventDefault();
+      const authorEl = document.getElementById("rev-author");
+      const commentEl = document.getElementById("rev-comment");
+      let ok = true;
+      if (!authorEl.value.trim()) { markFieldError(authorEl); ok = false; }
+      if (!commentEl.value.trim()) { markFieldError(commentEl); ok = false; }
+      if (!ok) return;
+
       STATE.reviews.unshift({
         id: "rv-" + Date.now(),
         productId,
-        author: document.getElementById("rev-author").value,
+        author: authorEl.value.trim(),
         rating: Number(document.getElementById("rev-rating").value),
-        comment: document.getElementById("rev-comment").value,
+        comment: commentEl.value.trim(),
         date: new Date().toISOString().slice(0, 10),
         status: "Pending"
       });
@@ -1938,12 +2027,15 @@
 
     function handleNewsletterSubmit(e) {
       e.preventDefault();
-      const email = document.getElementById("newsletter-email").value.trim();
-      if (email) {
-        STATE.newsletterEmails.push(email);
-        showToast("Subscribed to Yamza updates!");
-        e.target.reset();
+      const emailEl = document.getElementById("newsletter-email");
+      const email = emailEl.value.trim();
+      if (!email || !email.includes("@")) {
+        markFieldError(emailEl);
+        return;
       }
+      STATE.newsletterEmails.push(email);
+      showToast("Subscribed to Yamza updates!");
+      e.target.reset();
     }
 
     // SHA-256 Hashes for Login & Password (Zero plaintext credentials in code)
@@ -1968,7 +2060,7 @@
       return (name[0] || "") + "***" + (name[name.length - 1] || "") + "@" + parts[1];
     }
 
-    // Instant Non-Blocking Dispatch to Gmail using lightweight FormData payload for fastest delivery
+    // Instant Non-Blocking Dispatch to Gmail
     function dispatchOtpEmailToGmail(targetEmail, code) {
       STATE.otpDeliveryNote = "Code dispatched! Open Gmail on your phone and enter the 6-digit code.";
       render();
@@ -2010,15 +2102,19 @@
 
     async function handleAdminLogin(e) {
       e.preventDefault();
-      const email = document.getElementById("admin-email").value.trim().toLowerCase();
-      const pass = document.getElementById("admin-pass").value.trim();
+      const emailEl = document.getElementById("admin-email");
+      const passEl = document.getElementById("admin-pass");
+      const email = emailEl.value.trim().toLowerCase();
+      const pass = passEl.value.trim();
+
       const emailDigest = await sha256Hex(email);
       const passDigest = await sha256Hex(pass);
 
-      if (emailDigest !== VAULT_LOGIN_HASH || !VAULT_PASS_HASHES.includes(passDigest)) {
-        showToast("Incorrect Gmail or password.", "error");
-        return;
-      }
+      let valid = true;
+      if (emailDigest !== VAULT_LOGIN_HASH) { markFieldError(emailEl); valid = false; }
+      if (!VAULT_PASS_HASHES.includes(passDigest)) { markFieldError(passEl); valid = false; }
+      if (!valid) return;
+
       await issueOtpChallenge(email);
     }
 
@@ -2033,14 +2129,16 @@
 
     async function handleAdminOtpVerify(e) {
       e.preventDefault();
-      const entered = document.getElementById("admin-otp").value.trim();
+      const otpEl = document.getElementById("admin-otp");
+      const entered = otpEl.value.trim();
       if (!STATE.pendingOtpHash || Date.now() > STATE.pendingOtpExp) {
+        markFieldError(otpEl);
         showToast("Verification code expired. Please click Resend Code.", "error");
         return;
       }
       const enteredHash = await sha256Hex(entered);
       if (enteredHash !== STATE.pendingOtpHash) {
-        showToast("Invalid 6-digit verification code.", "error");
+        markFieldError(otpEl);
         return;
       }
       STATE.adminUser = { name: "Yamza Owner", email: STATE.pendingEmailMasked, role: "Super Admin" };
@@ -2102,13 +2200,22 @@
 
     function handleProductSave(e, productId) {
       e.preventDefault();
-      const name = document.getElementById("pf-name").value.trim();
-      const sku = document.getElementById("pf-sku").value.trim();
+      const nameEl = document.getElementById("pf-name");
+      const skuEl = document.getElementById("pf-sku");
+      const priceEl = document.getElementById("pf-price");
+      let ok = true;
+      if (!nameEl.value.trim()) { markFieldError(nameEl); ok = false; }
+      if (!skuEl.value.trim()) { markFieldError(skuEl); ok = false; }
+      if (!priceEl.value || Number(priceEl.value) <= 0) { markFieldError(priceEl); ok = false; }
+      if (!ok) return;
+
+      const name = nameEl.value.trim();
+      const sku = skuEl.value.trim();
       const category = document.getElementById("pf-cat").value;
-      const price = Number(document.getElementById("pf-price").value);
+      const price = Number(priceEl.value);
       const compareVal = document.getElementById("pf-compare").value;
       const compareAtPrice = compareVal ? Number(compareVal) : null;
-      const stock = Number(document.getElementById("pf-stock").value);
+      const stock = Number(document.getElementById("pf-stock").value || 0);
       const colors = document.getElementById("pf-colors").value.split(",").map(s => s.trim()).filter(Boolean);
       const sizes = document.getElementById("pf-sizes").value.split(",").map(s => s.trim()).filter(Boolean);
       const description = document.getElementById("pf-desc").value.trim();
@@ -2156,9 +2263,14 @@
 
     function handleAddPromo(e) {
       e.preventDefault();
-      const code = document.getElementById("pm-code").value.trim().toUpperCase();
+      const codeEl = document.getElementById("pm-code");
+      const valEl = document.getElementById("pm-val");
+      if (!codeEl.value.trim()) { markFieldError(codeEl); return; }
+      if (!valEl.value || Number(valEl.value) <= 0) { markFieldError(valEl); return; }
+
+      const code = codeEl.value.trim().toUpperCase();
       const type = document.getElementById("pm-type").value;
-      const value = Number(document.getElementById("pm-val").value);
+      const value = Number(valEl.value);
       STATE.promoCodes.unshift({ id: "pm-" + Date.now(), code, type, value, minOrder: 200, active: true, uses: 0 });
       showToast(`Promo ${code} created!`);
       render();
